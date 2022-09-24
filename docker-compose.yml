@@ -1,0 +1,74 @@
+version: "3.8"
+services:
+  app:
+    build:
+      args:
+        user: PS
+        uid: 1000
+      context: ./
+      dockerfile: Dockerfile
+    image: phixser
+    container_name: phixser-app
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./:/var/www
+    expose:
+      - 8000
+    networks:
+      - phixser
+
+  db:
+    image: mysql:5.7
+    container_name: phixser-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: dev
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ./.docker/mysql:/var/lib/mysql
+    ports:
+      - 3306:3306
+    expose:
+      - 3306
+    networks:
+      - phixser
+
+  nginx:
+    image: nginx:alpine
+    container_name: phixser-nginx
+    restart: unless-stopped
+    ports:
+      - 8000:80
+    volumes:
+      - ./:/var/www
+      - ./.docker/nginx:/etc/nginx/conf.d/
+    networks:
+      - phixser
+    depends_on:
+      - db
+      - app
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "7000:80"
+    container_name: phixser-panel
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      UPLOAD_LIMIT: 300M
+    networks:
+      - phixser
+    depends_on:
+      - db
+
+networks:
+  phixser:
+    driver: bridge
